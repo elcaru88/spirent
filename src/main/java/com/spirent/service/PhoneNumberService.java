@@ -6,15 +6,21 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class PhoneNumberService {
 
+    public Set<String> readPhoneNumbersFromFolder(Path phoneNumberPath) {
+        return searchPhoneFilesOnFolder(phoneNumberPath)
+                .flatMap(this::readPhoneNumbersFromFile)
+                .sorted()
+                .map(PhoneNumber::getNormalizedPhoneNumber)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+    }
 
-    public String normalizePhoneNumberString(String phoneNumber) {
+    private PhoneNumber buildPhoneNumberFromString(String phoneNumber) {
         PhoneNumber.PhoneNumberBuilder phoneNumberBuilder = PhoneNumber.builder().country("7");
         StringBuilder lastSevenNumbers = new StringBuilder();
         StringBuilder threeCityNumbers = new StringBuilder();
@@ -36,30 +42,28 @@ public class PhoneNumberService {
         } else {
             phoneNumberBuilder.city("812");
         }
-        return phoneNumberBuilder.build().getNormalizedPhoneNumber();
+        return phoneNumberBuilder.build();
     }
 
-    public Stream<Path> searchPhoneFilesOnFolder(Path phoneNumberPath) throws IOException {
+    private Stream<Path> searchPhoneFilesOnFolder(Path phoneNumberPath) {
         if (!Files.isDirectory(phoneNumberPath)) {
             throw new IllegalArgumentException("path is not a directory");
         }
-        return Files.walk(phoneNumberPath).filter(file -> !Files.isDirectory(file));
+        try {
+            Stream<Path> paths = Files.walk(phoneNumberPath);
+            return paths.filter(file -> !Files.isDirectory(file));
+        } catch (IOException e) {
+            return Stream.empty();
+        }
     }
 
-    public List<String> readPhoneNumbersFromFolder(Path phoneNumberPath) throws IOException {
-        List<String> result = new ArrayList<>();
-        searchPhoneFilesOnFolder(phoneNumberPath).map(phoneNumberFile -> {
-            try {
-                return readPhoneNumbersFromFile(phoneNumberFile);
-            } catch (IOException e) {
-                return Stream.of("");
-            }
-        }).forEach(phoneNumbers -> result.addAll(phoneNumbers.collect(Collectors.toList())));
-        return result;
-    }
-
-    public Stream<String> readPhoneNumbersFromFile(Path phoneNumberFile) throws IOException {
-        return Files.lines(phoneNumberFile).map(this::normalizePhoneNumberString);
+    private Stream<PhoneNumber> readPhoneNumbersFromFile(Path phoneNumberFile) {
+        try {
+            Stream<String> lines = Files.lines(phoneNumberFile);
+            return lines.map(this::buildPhoneNumberFromString);
+        } catch (IOException e) {
+            return Stream.empty();
+        }
     }
 
 }

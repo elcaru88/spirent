@@ -11,9 +11,14 @@ import java.nio.file.Path;
 public class App {
 
     public static void main(String[] args) throws IOException {
-
-
+        if (args.length < 1) {
+            System.out.println("No files entered");
+            return;
+        }
         PhoneNumberService service = new PhoneNumberService();
-        service.readPhoneNumbersFromFolder(Path.of("/home/ccaruso/IdeaProjects/spirent/src/main/resources")).forEach(System.out::println);
+        for (String fileName : args) {
+            service.readPhoneNumbersFromFolder(
+                    Path.of(fileName)).forEach(System.out::println);
+        }
     }
 }
